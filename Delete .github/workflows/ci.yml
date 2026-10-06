@@ -1,0 +1,96 @@
+name: verify-and-deploy
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    concurrency:
+      group: deal-ci-neon
+      cancel-in-progress: false
+    env:
+      DATABASE_URL: ${{ secrets.CI_DATABASE_URL }}
+      DEMO_PASSWORD: ${{ secrets.CI_DEMO_PASSWORD }}
+      BETTER_AUTH_URL: http://localhost:3000
+      DEMO_MODE: "true"
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check Neon CI configuration
+        run: |
+          test -n "$DATABASE_URL" || { echo 'Missing CI_DATABASE_URL secret'; exit 1; }
+          test -n "$DEMO_PASSWORD" || { echo 'Missing CI_DEMO_PASSWORD secret'; exit 1; }
+          node -e 'const url = new URL(process.env.DATABASE_URL); if (!url.hostname.endsWith(".neon.tech") || url.searchParams.get("sslmode") !== "require") { console.error("CI_DATABASE_URL must be a Neon URL with sslmode=require"); process.exit(1) }'
+          AUTH_SECRET="$(openssl rand -hex 32)"
+          echo "::add-mask::$AUTH_SECRET"
+          echo "BETTER_AUTH_SECRET=$AUTH_SECRET" >> "$GITHUB_ENV"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+      - run: npm ci
+      - run: npm run db:migrate && npm run db:seed
+      - run: npm run typecheck && npm run format:check && npm run specs:check
+      - run: npm run test:integration
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - run: |
+          npm start > /tmp/next.log 2>&1 &
+          node -e "let n=0;const check=()=>fetch('http://localhost:3000').then(()=>process.exit()).catch(()=>{if(++n>60)process.exit(1);setTimeout(check,500)});check()"
+          npm run test:e2e
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report
+          path: playwright-report/
+          if-no-files-found: ignore
+
+  deploy:
+    if: github.ref == 'refs/heads/master' && github.event_name != 'pull_request'
+    needs: test
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: ${{ steps.deploy.outputs.url }}
+    concurrency:
+      group: deal-production
+      cancel-in-progress: false
+    env:
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+      - run: npm ci
+      - name: Install Vercel CLI
+        run: npm install --global vercel@latest
+      - name: Load production project settings
+        run: vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
+      - name: Apply production migrations
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: npm run db:migrate
+      - name: Seed demo accounts and listings
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DEMO_PASSWORD: ${{ secrets.DEMO_PASSWORD }}
+        run: npm run db:seed
+      - name: Build Vercel output
+        run: vercel build --prod --token="$VERCEL_TOKEN"
+      - name: Deploy to production
+        id: deploy
+        run: |
+          DEPLOYMENT_URL="$(vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN")"
+          echo "url=$DEPLOYMENT_URL" >> "$GITHUB_OUTPUT"
+      - name: Check deployment
+        run: curl --fail --silent --show-error --location --retry 8 --retry-delay 5 --retry-all-errors "${{ steps.deploy.outputs.url }}/login" > /dev/null
