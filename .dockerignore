@@ -1,0 +1,8 @@
+node_modules
+.next
+.git
+.env*
+.pgdata
+test-results
+playwright-report
+docs/*.png

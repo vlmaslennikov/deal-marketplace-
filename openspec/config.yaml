@@ -1,0 +1,4 @@
+schema: spec-driven
+context: |
+  Next.js TypeScript marketplace prototype, PostgreSQL, Drizzle, Better Auth.
+  Modular monolith, test-first domain, Playwright UI verification.

@@ -1,0 +1,52 @@
+{
+  "name": "deal-prototype",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev --hostname 0.0.0.0",
+    "build": "next build",
+    "start": "node --env-file-if-exists=.env scripts/start.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:e2e": "playwright test",
+    "qa:neon": "bash scripts/qa-neon.sh",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "node --env-file-if-exists=.env --import tsx scripts/migrate.ts",
+    "db:seed": "node --env-file-if-exists=.env --import tsx scripts/seed.ts",
+    "db:preview": "node --import tsx scripts/pglite-dev.ts",
+    "test:integration": "RUN_DB_TESTS=true node --env-file-if-exists=.env node_modules/vitest/vitest.mjs run",
+    "format": "prettier --write src scripts tests docs openspec *.ts *.json *.md *.yaml .github/workflows/*.yml",
+    "format:check": "prettier --check src scripts tests docs openspec *.ts *.json *.md *.yaml .github/workflows/*.yml",
+    "specs:check": "node scripts/check-specs.mjs"
+  },
+  "dependencies": {
+    "@faker-js/faker": "10.6.0",
+    "better-auth": "1.7.7",
+    "drizzle-orm": "0.45.3",
+    "lucide-react": "1.52.0",
+    "next": "16.3.8",
+    "pg": "8.23.1",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "zod": "4.6.5"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "0.5.8",
+    "@electric-sql/pglite-socket": "0.2.11",
+    "@playwright/test": "1.63.0",
+    "@types/node": "26.6.4",
+    "@types/pg": "8.23.1",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "drizzle-kit": "0.31.11",
+    "flag-icons": "7.5.0",
+    "prettier": "3.9.9",
+    "tsx": "4.23.15",
+    "typescript": "7.0.2",
+    "vitest": "5.0.3"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  }
+}

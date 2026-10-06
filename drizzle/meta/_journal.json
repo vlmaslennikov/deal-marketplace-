@@ -1,0 +1,27 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1791217729603,
+      "tag": "0000_sharp_ares",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1791239784996,
+      "tag": "0001_light_microchip",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791289701547,
+      "tag": "0002_rename-demo-emails",
+      "breakpoints": true
+    }
+  ]
+}
